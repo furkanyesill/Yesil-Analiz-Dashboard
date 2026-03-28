@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yeşil Analiz Borsa'nın Farkı - AI Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Yükleme Ekranı (AI Çalışırken) -->
+    <div id="loading-screen" class="loading-overlay">
+        <div class="loader-container">
+            <div class="spinner"></div>
+            <h2 class="gradient-text">Yapay Zeka Piyasayı Tarıyor...</h2>
+            <p>10.000+ strateji kombinasyonu test ediliyor (Kötü gün senaryoları dâhil). Lütfen Bekleyiniz...</p>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+        </div>
+    </div>
+
+    <!-- Hoşgeldin / İlk Başlangıç Ekranı -->
+    <div id="welcome-screen" class="loading-overlay" style="display: none;">
+        <div class="loader-container" style="background:var(--panel-bg); padding:3rem; border-radius:16px; border:1px solid rgba(0,242,254,0.3)">
+            <h1 class="neon-text" style="margin-bottom:1rem; font-size:2rem">Yeşil Analiz Borsa'nın Farkı</h1>
+            <p style="margin-bottom:2rem; color:var(--text-secondary)">Sistemde hazır veri bulunamadı. Lütfen "Analizi Başlat" butonuna tıklayarak derin piyasa taramasını (Minimax Stres Testi) devreye sokunuz.</p>
+            <button class="glow-on-hover" onclick="runAnalysis()" style="padding:1rem 2.5rem; font-size:1.1rem; cursor:pointer; font-weight:bold; border-radius:30px; border:none; background:linear-gradient(to right, var(--accent-secondary), var(--accent-primary)); color:#000;">
+                🚀 YAPAY ZEKA ANALİZİNİ BAŞLAT
+            </button>
+        </div>
+    </div>
+
+    <div class="dashboard-container" id="dashboard" style="display: none;">
+        <header class="top-nav glass-panel">
+            <div class="logo">
+                <span class="neon-text">Yeşil Analiz</span> <span class="badge">BORSA'NIN FARKI</span>
+            </div>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('history')">🕰️ İşlem Geçmişi</button>
+                <button class="tab-btn" onclick="switchTab('deep-analytics')">🔍 Sistem Analizi</button>
+                <button class="tab-btn" onclick="switchTab('all-signals')" style="color:var(--success-color)">📈 Tüm Sinyaller (Hiç Satmasaydık?)</button>
+                <button class="tab-btn control-panel-btn" onclick="switchTab('settings')" style="border-color:var(--warning-color); color:var(--warning-color)">⚙️ Kontrol Paneli</button>
+            </div>
+        </header>
+
+        <!-- KPI SUMMARY CARDS -->
+        <section class="kpi-grid" id="kpi-container">
+            <!-- JavaScript will populate this -->
+        </section>
+
+        <!-- AI RECOMMENDATION BANNER -->
+        <div class="ai-banner glass-panel">
+            <div class="ai-icon">🧠</div>
+            <div class="ai-text" id="ai-text">
+                <!-- JS will populate -->
+            </div>
+        </div>
+
+        <!-- TAB 1: HISTORY -->
+        <main id="tab-history" class="tab-content active">
+            <div class="card glass-panel">
+                <div class="card-header">
+                    <h3>Kronolojik İşlem Defteri (Minimax Senaryo)</h3>
+                    <p class="subtitle">En kötü ihtimaller hesaplanarak garanti altına alınmış şampiyon stratejinin geçmiş işlemleri.</p>
+                </div>
+                <div class="table-responsive">
+                    <table id="history-table">
+                        <thead>
+                            <tr>
+                                <th>Hisse</th>
+                                <th>Alış Tarihi</th>
+                                <th>Alış Fiyatı</th>
+                                <th>Satış Tarihi</th>
+                                <th>Satış Fiyatı</th>
+                                <th>Süre</th>
+                                <th>Net Kar/Zarar</th>
+                                <th>Çıkış Sebebi</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- TAB 2: DEEP ANALYTICS -->
+        <main id="tab-deep-analytics" class="tab-content">
+            <div class="header-section">
+                <h3 style="margin-bottom:0.5rem">Tepeler ve Dipler (Kâr-Zarar Derinliği)</h3>
+                <p class="subtitle">Aldığımız bir hisse biz aldıktan sonra en fazla kaça ıktı? En fazla kaça düştü? Ne zaman düştü?</p>
+            </div>
+            
+            <div class="analytics-grid" id="analytics-grid">
+                <!-- JS will inject deep analytic cards here -->
+            </div>
+        </main>
+
+        <!-- TAB 3: ALL SIGNALS (HIÇ SATMASAYDIK) -->
+        <main id="tab-all-signals" class="tab-content">
+            <div class="header-section">
+                <h3 style="margin-bottom:0.5rem; color:var(--success-color)">Tüm Sinyaller - Güncel Durum (Hold Forever)</h3>
+                <p class="subtitle">Bu sekme grubun paylaştığı "Tüm Hisseleri" (Ayırt etmeden) o tarihte alıp <strong>BUGÜNE KADAR HİÇ SATMASAYDIK</strong> şu an ne durumda olurdu kısmını gösterir.</p>
+            </div>
+            
+            <div class="analytics-grid" id="all-signals-grid">
+                <!-- JS will inject deep analytic cards here -->
+            </div>
+        </main>
+
+        <!-- TAB 4: SETTINGS & CONTROLS -->
+        <main id="tab-settings" class="tab-content">
+            <div class="analytics-grid" style="grid-template-columns: 1fr 1fr;">
+                
+                <!-- Telegram Veri Çekme -->
+                <div class="card glass-panel">
+                    <h3 style="margin-bottom: 1rem; color: #fff;">📡 Canlı Telegram Bağlantısı</h3>
+                    <p style="color:var(--text-secondary); margin-bottom: 1.5rem;">Telegram kanalınızdaki güncel hisse bildirimlerini sisteme çeker.</p>
+                    
+                    <div style="margin-bottom:1rem">
+                        <label for="tg-date" class="kpi-label" style="display:block;margin-bottom:5px">Hangi Tarihten İtibaren?</label>
+                        <input type="date" id="tg-date" value="2025-08-01" style="width:100%; padding:0.8rem; background:rgba(0,0,0,0.5); border:1px solid var(--border-color); color:#fff; border-radius:8px;">
+                    </div>
+                    
+                    <button onclick="syncTelegram()" class="glow-on-hover" style="width:100%; padding:1rem; border-radius:8px; border:none; background:rgba(0,242,254,0.2); color:var(--accent-primary); font-weight:bold; cursor:pointer;">
+                        📥 VERİLERİ ŞİMDİ ÇEK 
+                    </button>
+                    <p id="tg-status" style="margin-top:1rem; font-size:0.85rem; color:#888; white-space:pre-wrap;"></p>
+                </div>
+
+                <!-- Özel Senaryo Üretici -->
+                <div class="card glass-panel" style="border-color: rgba(245, 158, 11, 0.3);">
+                    <h3 style="margin-bottom: 1rem; color: #fff;">⚙️ YZ Senaryo Yapılandırıcı</h3>
+                    <p style="color:var(--text-secondary); margin-bottom: 1.5rem;">Farklı tarih aralıkları veya kendi test kombinasyonlarınızı manuel deneyin.</p>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem">
+                        <div>
+                            <label class="kpi-label" style="display:block;margin-bottom:5px">Başlangıç Tarihi</label>
+                            <input type="date" id="sim-start" style="width:100%; padding:0.8rem; background:rgba(0,0,0,0.5); border:1px solid var(--border-color); color:#fff; border-radius:8px;">
+                        </div>
+                        <div>
+                            <label class="kpi-label" style="display:block;margin-bottom:5px">Bitiş Tarihi</label>
+                            <input type="date" id="sim-end" style="width:100%; padding:0.8rem; background:rgba(0,0,0,0.5); border:1px solid var(--border-color); color:#fff; border-radius:8px;">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:1rem">
+                        <label class="kpi-label" style="display:block;margin-bottom:5px">Kar Hedefleri (Virgül ile ayırın)</label>
+                        <input type="text" id="sim-targets" value="10, 12, 14, 15, 24, 50" style="width:100%; padding:0.8rem; background:rgba(0,0,0,0.5); border:1px solid var(--border-color); color:#fff; border-radius:8px;">
+                    </div>
+                    
+                    <div style="margin-bottom:1.5rem">
+                        <label class="kpi-label" style="display:block;margin-bottom:5px">Zaman Limitleri (Gün)</label>
+                        <input type="text" id="sim-days" value="5, 7, 9, 10, 14, 21" style="width:100%; padding:0.8rem; background:rgba(0,0,0,0.5); border:1px solid var(--border-color); color:#fff; border-radius:8px;">
+                    </div>
+                    
+                    <button onclick="runAnalysisWithCustom()" class="glow-on-hover" style="width:100%; padding:1rem; border-radius:8px; border:none; background:linear-gradient(to right, #f59e0b, #d97706); color:#fff; font-weight:bold; cursor:pointer;">
+                        🚨 MANUEL ANALİZİ BAŞLAT
+                    </button>
+                    
+                    <button onclick="runAnalysis()" class="glow-on-hover" style="width:100%; padding:1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:transparent; color:#fff; font-weight:bold; cursor:pointer; margin-top:0.5rem">
+                        🔄 VARSAYILAN YENİDEN HESAPLA
+                    </button>
+                </div>
+
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
