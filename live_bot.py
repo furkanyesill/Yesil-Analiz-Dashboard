@@ -11,6 +11,7 @@ from telethon import TelegramClient, events
 # =========================================================================
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tg_config.json")
 LIVE_PORTFOLIO_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "live_portfolio.json")
+SUBSCRIBERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "subscribers.json")
 
 # KESİN STRATEJİ KURALLARI (Şampiyon Kombinasyon)
 KAR_HEDEFI = 12.0
@@ -42,6 +43,33 @@ def load_live_portfolio():
 def save_live_portfolio(port):
     with open(LIVE_PORTFOLIO_FILE, "w", encoding="utf-8") as f:
         json.dump(port, f, indent=4, ensure_ascii=False)
+
+def load_subscribers():
+    if os.path.exists(SUBSCRIBERS_FILE):
+        with open(SUBSCRIBERS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+def save_subscribers(subs):
+    with open(SUBSCRIBERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(list(set(subs)), f, indent=4)
+
+async def broadcast_message(client, text, admin_id=None):
+    subs = load_subscribers()
+    if admin_id and str(admin_id) != 'me' and admin_id not in subs:
+        subs.append(admin_id)
+        save_subscribers(subs)
+        
+    # Userbot modundaysak (admin_id == 'me')
+    if admin_id == 'me' and not subs:
+        await client.send_message('me', text)
+        return
+        
+    for user_id in set(subs):
+        try:
+            await client.send_message(int(user_id), text)
+        except Exception as e:
+            print(f"[{user_id}] Bildirim gönderilemedi: {e}")
 
 def detect_category(text: str):
     text_upper = text.upper()
@@ -87,7 +115,7 @@ async def pazar_ozeti_ve_kapanis(client, cfg):
     admin_id = int(cfg.get("admin_user_id", 0)) if cfg.get("admin_user_id") else 'me'
     
     if not port:
-         await client.send_message(admin_id, "ℹ️ Şuan takip edilen aktif bir hisse yok.")
+         await broadcast_message(client, "ℹ️ Şuan takip edilen aktif bir hisse yok.", admin_id)
          return
          
     ozet_mesaji = "📊 **GÜNLÜK KAPANIŞ VE TRAILING STOP ÖZETİ (18:30)** 📊\n\n"
@@ -149,7 +177,7 @@ async def pazar_ozeti_ve_kapanis(client, cfg):
         del port[h]
         
     save_live_portfolio(port)
-    await client.send_message(admin_id, ozet_mesaji)
+    await broadcast_message(client, ozet_mesaji, admin_id)
 
 async def check_market_prices(client, cfg):
     """Gün içi fiyatları kontrol eder ve Tetikleyicileri (Trigger) arar"""
@@ -173,13 +201,13 @@ async def check_market_prices(client, cfg):
         
         # 1. Sabit Stop Kontrolü
         if pr <= sabit_stop_fiyati:
-             await client.send_message(admin_id, f"🚨 **ZARAR KES (STOP LOSS) TETİKLENDİ!**\n📉 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL (Zarar: %10)\n🚫 Takipten çıkarıldı.")
+             await broadcast_message(client, f"🚨 **ZARAR KES (STOP LOSS) TETİKLENDİ!**\n📉 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL (Zarar: %10)\n🚫 Takipten çıkarıldı.", admin_id)
              silinecek_hisseler.append(hisse)
              continue
              
         # 2. Kar Hedefi Kontrolü
         if pr >= hedef_fiyat:
-             await client.send_message(admin_id, f"🎉 **KAR HEDEFİNE ULAŞILDI!**\n📈 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL (Kar: %12)\n✅ Takipten çıkarıldı.")
+             await broadcast_message(client, f"🎉 **KAR HEDEFİNE ULAŞILDI!**\n📈 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL (Kar: %12)\n✅ Takipten çıkarıldı.", admin_id)
              silinecek_hisseler.append(hisse)
              continue
              
@@ -290,7 +318,7 @@ async def main():
                              f"🛡️ Trailing Limit: %6 (Yeşil kapatırsa aktif olur)\n"
                              f"⏳ Süre Limiti: 14 Gün"
                     )
-                    await client.send_message(admin_id, mesaj_metni)
+                    await broadcast_message(client, mesaj_metni, admin_id)
                     print(f"✅ Yeni hisse sisteme entegre edildi: {hisse} ({fiyat} TL)")
 
     # ── 2. Kullanıcıdan Gelen Manuel İstekler (DM / Kendine atılan gizli komut) ──
@@ -298,13 +326,29 @@ async def main():
     async def manual_handler(event):
         try:
             sender_id = event.sender_id
-            # Bot kullanılıyorsa sadece Admin ID veya kendi Saved Messages'dan gelenlere cevap ver
-            if admin_id != 'me' and sender_id != admin_id:
-                return
-            elif admin_id == 'me' and not event.out and not event.is_private:
-                # Kendi hesabından kendisine atanlar dışındakileri reddet (userbot modu için)
+            subs = load_subscribers()
+            
+            # Userbot check
+            if admin_id == 'me' and not event.out and not event.is_private:
                 if sender_id != (await client.get_me()).id:
                     return
+                    
+            text = event.message.text.lower()
+            
+            # /start komutu - yeni abone kaydı
+            if text == "/start":
+                if admin_id != 'me' and sender_id not in subs:
+                    subs.append(sender_id)
+                    save_subscribers(subs)
+                    await event.reply("👋 Borsa Bildirim Ağına Hoşgeldin! Artık yapay zeka sisteminin kar/zarar bildirimlerini VIP olarak alacaksın! `ozet` yazarak mevcut hisselere bakabilirsin.")
+                else:
+                    await event.reply("Hali hazırda sisteme kayıtlısın! `ozet` yazıp listeyi görebilirsin.")
+                return
+
+            # Diğer komutlar için abone değilse reddet
+            if admin_id != 'me' and sender_id not in subs and sender_id != admin_id:
+                return
+
         except Exception:
             pass
             
