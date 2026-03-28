@@ -15,8 +15,8 @@ LIVE_PORTFOLIO_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "
 # KESİN STRATEJİ KURALLARI (Şampiyon Kombinasyon)
 KAR_HEDEFI = 12.0
 STOP_LOSS = 10.0
-TRAILING_STOP = 5.0
-MAX_GUN = 10
+TRAILING_STOP = 6.0
+MAX_GUN = 14
 
 SIGNAL_PATTERNS = [
     ("GÜÇLÜ_HACİMLİ", ["GÜÇLÜ HACİMLİ GİRİŞ"]),
@@ -140,7 +140,7 @@ async def pazar_ozeti_ve_kapanis(client):
         ozet_mesaji += f"📌 **{hisse}** (Giriş: {alis_fiyati:.3f} TL | Güncel: {pr:.3f} TL)\n"
         ozet_mesaji += f"   🎯 Hedef (%12): {hedef_fiyat:.3f} TL\n"
         ozet_mesaji += f"   🛑 Sabit Stop (%10): {sabit_stop_fiyati:.3f} TL\n"
-        ozet_mesaji += f"   🛡️ Trailing (%5): {trailing_metni}\n"
+        ozet_mesaji += f"   🛡️ Trailing (%6): {trailing_metni}\n"
         ozet_mesaji += f"   ⏳ Kalan Gün: {kalan_gun} gün\n\n"
         
     for h in silinecek_hisseler:
@@ -250,8 +250,8 @@ async def main():
         if not event.message.text: return
         cat = detect_category(event.message.text)
         
-        # İstenilen 3 hedef kategorisi kontrolü
-        if cat in ["GÜÇLÜ_HACİMLİ", "HACİMLİ", "GİRİŞ"]:
+        # İstenilen 2 hedef kategorisi kontrolü (GÜÇLÜ_HACİMLİ ve GİRİŞ ikilisi)
+        if cat in ["GÜÇLÜ_HACİMLİ", "GİRİŞ"]:
             parsed = parse_signal_message(event.message.text, event.message.date)
             if parsed:
                 hisse, tarih_dt, fiyat = parsed
@@ -275,8 +275,8 @@ async def main():
                              f"⚙️ **Tetikleyiciler (Senin Adına Bekliyorum):**\n"
                              f"🎯 Hedef Kar: %12\n"
                              f"🛑 Stop Loss: %10\n"
-                             f"🛡️ Trailing Limit: %5 (Yeşil kapatırsa aktif olur)\n"
-                             f"⏳ Süre Limiti: 10 Gün"
+                             f"🛡️ Trailing Limit: %6 (Yeşil kapatırsa aktif olur)\n"
+                             f"⏳ Süre Limiti: 14 Gün"
                     )
                     await client.send_message('me', mesaj_metni)
                     print(f"✅ Yeni hisse sisteme entegre edildi: {hisse} ({fiyat} TL)")
