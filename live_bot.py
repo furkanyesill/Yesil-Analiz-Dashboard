@@ -81,11 +81,13 @@ def get_current_price(hisse):
 # =========================================================================
 # ÇEKİRDEK İŞLEMLER
 # =========================================================================
-async def pazar_ozeti_ve_kapanis(client):
+async def pazar_ozeti_ve_kapanis(client, cfg):
     """Her gün 18:30 civarı günlük kapanış işlemlerini yapar ve özet gönderir"""
     port = load_live_portfolio()
+    admin_id = int(cfg.get("admin_user_id", 0)) if cfg.get("admin_user_id") else 'me'
+    
     if not port:
-         await client.send_message('me', "ℹ️ Şuan takip edilen aktif bir hisse yok.")
+         await client.send_message(admin_id, "ℹ️ Şuan takip edilen aktif bir hisse yok.")
          return
          
     ozet_mesaji = "📊 **GÜNLÜK KAPANIŞ VE TRAILING STOP ÖZETİ (18:30)** 📊\n\n"
@@ -147,11 +149,13 @@ async def pazar_ozeti_ve_kapanis(client):
         del port[h]
         
     save_live_portfolio(port)
-    await client.send_message('me', ozet_mesaji)
+    await client.send_message(admin_id, ozet_mesaji)
 
-async def check_market_prices(client):
+async def check_market_prices(client, cfg):
     """Gün içi fiyatları kontrol eder ve Tetikleyicileri (Trigger) arar"""
     port = load_live_portfolio()
+    admin_id = int(cfg.get("admin_user_id", 0)) if cfg.get("admin_user_id") else 'me'
+    
     if not port:
         return
         
@@ -169,13 +173,13 @@ async def check_market_prices(client):
         
         # 1. Sabit Stop Kontrolü
         if pr <= sabit_stop_fiyati:
-             await client.send_message('me', f"🚨 **ZARAR KES (STOP LOSS) TETİKLENDİ!**\n📉 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL (Zarar: %10)\n🚫 Takipten çıkarıldı.")
+             await client.send_message(admin_id, f"🚨 **ZARAR KES (STOP LOSS) TETİKLENDİ!**\n📉 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL (Zarar: %10)\n🚫 Takipten çıkarıldı.")
              silinecek_hisseler.append(hisse)
              continue
              
         # 2. Kar Hedefi Kontrolü
         if pr >= hedef_fiyat:
-             await client.send_message('me', f"🎉 **KAR HEDEFİNE ULAŞILDI!**\n📈 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL (Kar: %12)\n✅ Takipten çıkarıldı.")
+             await client.send_message(admin_id, f"🎉 **KAR HEDEFİNE ULAŞILDI!**\n📈 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL (Kar: %12)\n✅ Takipten çıkarıldı.")
              silinecek_hisseler.append(hisse)
              continue
              
@@ -187,7 +191,7 @@ async def check_market_prices(client):
                  if pr <= trailing_limit:
                       kar_orani = ((pr - alis_fiyati) / alis_fiyati) * 100
                       durum_emoji = "🟢 Kar" if kar_orani > 0 else "🔴 Zarar"
-                      await client.send_message('me', f"🛡️ **TRAILING STOP TETİKLENDİ!**\n📉 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL\n📊 Sonuç: {durum_emoji} (%{kar_orani:.1f})\n🚫 Takipten çıkarıldı.")
+                      await client.send_message(admin_id, f"🛡️ **TRAILING STOP TETİKLENDİ!**\n📉 Hisse: {hisse}\n💰 Satış Fiyatı: {pr:.3f} TL\n📊 Sonuç: {durum_emoji} (%{kar_orani:.1f})\n🚫 Takipten çıkarıldı.")
                       silinecek_hisseler.append(hisse)
                       continue
 
@@ -197,7 +201,7 @@ async def check_market_prices(client):
     if silinecek_hisseler:
         save_live_portfolio(port)
 
-async def market_poller(client):
+async def market_poller(client, cfg):
     """Piyasa saatlerinde fiyat kontrolünü sürekli arka planda yapar."""
     tz_trt = timezone(timedelta(hours=3))
     
@@ -211,11 +215,11 @@ async def market_poller(client):
             if now_tr.weekday() <= 4:
                 # 10:00 - 18:15 arası piyasa açık
                 if 10 <= now_tr.hour <= 18:
-                    await check_market_prices(client)
+                    await check_market_prices(client, cfg)
                     
                 # Saat 18:30'da günlük kapaniş ve trailing hesaplamasi
                 if now_tr.hour == 18 and now_tr.minute >= 30 and not daily_summary_sent_today:
-                    await pazar_ozeti_ve_kapanis(client)
+                    await pazar_ozeti_ve_kapanis(client, cfg)
                     daily_summary_sent_today = True
                     
             # Ertesi güne geçildiğinde bayrağı temizle
@@ -238,10 +242,18 @@ async def main():
         return
         
     session_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tg_session")
+    
+    admin_id = int(cfg.get("admin_user_id", 0)) if cfg.get("admin_user_id") else 'me'
+    
     client = TelegramClient(session_path, cfg["api_id"], cfg["api_hash"])
     
-    await client.start(phone=cfg["phone"])
-    print("✅ Live Bot Telegram Bağlantısı Kuruldu!")
+    if cfg.get("bot_token"):
+        await client.start(bot_token=cfg["bot_token"])
+        print("✅ Live Bot (Resmi Bot API) Telegram Bağlantısı Kuruldu!")
+    else:
+        await client.start(phone=cfg["phone"])
+        print("✅ Live Bot (Userbot) Telegram Bağlantısı Kuruldu!")
+        
     print(f"📡 {cfg['group']} kanalı dinleniyor...")
     
     # ── 1. Telegramdan Canlı Sinyal Yakalama ──
@@ -278,26 +290,38 @@ async def main():
                              f"🛡️ Trailing Limit: %6 (Yeşil kapatırsa aktif olur)\n"
                              f"⏳ Süre Limiti: 14 Gün"
                     )
-                    await client.send_message('me', mesaj_metni)
+                    await client.send_message(admin_id, mesaj_metni)
                     print(f"✅ Yeni hisse sisteme entegre edildi: {hisse} ({fiyat} TL)")
 
-    # ── 2. Kullanıcıdan Gelen Manuel İstekler (Kendine attığın mesajlar) ──
-    @client.on(events.NewMessage(chats='me'))
+    # ── 2. Kullanıcıdan Gelen Manuel İstekler (DM / Kendine atılan gizli komut) ──
+    @client.on(events.NewMessage(incoming=True))
     async def manual_handler(event):
+        try:
+            sender_id = event.sender_id
+            # Bot kullanılıyorsa sadece Admin ID veya kendi Saved Messages'dan gelenlere cevap ver
+            if admin_id != 'me' and sender_id != admin_id:
+                return
+            elif admin_id == 'me' and not event.out and not event.is_private:
+                # Kendi hesabından kendisine atanlar dışındakileri reddet (userbot modu için)
+                if sender_id != (await client.get_me()).id:
+                    return
+        except Exception:
+            pass
+            
         text = event.message.text.lower()
         if text == "ozet":
             mesaj = await event.reply("🔄 Manuel özet ve güncel Yahoo Finance fiyatları çekiliyor...")
-            await pazar_ozeti_ve_kapanis(client)
+            await pazar_ozeti_ve_kapanis(client, cfg)
         elif text == "tetik":
             await event.reply("⚡ Sistem tetikleyicileri Yahoo'dan kontrole başladı...")
-            await check_market_prices(client)
+            await check_market_prices(client, cfg)
             await event.reply("✅ Kontrol tamamlandı!")
 
     print("\n👉 Bot şu anda arka planda Yahoo Finance'i sessizce tarıyor ve Telegram grubunda bekliyor.")
-    print("👉 Telegram 'Kayıtlı Mesajlar / Saved Messages' kısmına gelip 'ozet' yazarak güncel tabloyu çekebilirsin.")
+    print("👉 Bota (veya Kayıtlı Mesajlara) 'ozet' yazarak güncel tabloyu anında çekebilirsin.")
     
     # ── 3. Arka Plan Poller ve Bağlantıyı Beklet ──
-    client.loop.create_task(market_poller(client))
+    client.loop.create_task(market_poller(client, cfg))
     await client.run_until_disconnected()
 
 if __name__ == "__main__":
